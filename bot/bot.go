@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arinji2/law-bot/bot/clauses"
 	"github.com/arinji2/law-bot/pb"
 	"github.com/bwmarrin/discordgo"
 )
@@ -16,11 +17,7 @@ type Bot struct {
 	Commands []*discordgo.ApplicationCommand
 }
 
-var (
-	pbAdmin     *pb.PocketbaseAdmin
-	articleData []pb.BaseCollection
-	clauseData  []pb.ClauseCollection
-)
+var ClauseCommand clauses.ClauseCommand
 
 func NewBot(token string, guildID string) (*Bot, error) {
 	var err error
@@ -31,35 +28,38 @@ func NewBot(token string, guildID string) (*Bot, error) {
 	return &Bot{Session: s, GuildID: guildID}, nil
 }
 
-func (b *Bot) Run(locPbAdmin *pb.PocketbaseAdmin) {
+func (b *Bot) Run(pbAdmin *pb.PocketbaseAdmin) {
 	log.Println("Starting bot...")
-	pbAdmin = locPbAdmin
 	b.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
-	createdCommands := b.registerCommands()
-	b.Commands = createdCommands
-	log.Println("Bot is now running.")
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	locArticleData, err := pbAdmin.GetAllArticles()
 	if err != nil {
 		log.Panicf("Cannot get articles: %v", err)
-		articleData = make([]pb.BaseCollection, 0)
-	} else {
-		articleData = locArticleData
+		locArticleData = make([]pb.BaseCollection, 0)
 	}
 
 	locClauseData, err := pbAdmin.GetAllClauses(true)
 	if err != nil {
 		log.Panicf("Cannot get clauses: %v", err)
-		clauseData = make([]pb.ClauseCollection, 0)
-	} else {
-		clauseData = locClauseData
+		locClauseData = make([]pb.ClauseCollection, 0)
 	}
 
+	ClauseCommand.ArticleData = locArticleData
+	ClauseCommand.ClauseData = locClauseData
+	ClauseCommand.PbAdmin = *pbAdmin
+
+	createdCommands := b.registerCommands()
+	b.Commands = createdCommands
+
+	log.Println("Bot is now running.")
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
 	<-stop
+
 	log.Println("\nShutting down gracefully...")
 
 	if err := b.Session.Close(); err != nil {
@@ -67,38 +67,8 @@ func (b *Bot) Run(locPbAdmin *pb.PocketbaseAdmin) {
 	} else {
 		log.Println("Discord session closed successfully.")
 	}
+
 	b.unregisterCommands()
-}
-
-func (b *Bot) registerCommands() []*discordgo.ApplicationCommand {
-	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
-		}
-	})
-	err := b.Session.Open()
-	if err != nil {
-		log.Fatalf("Cannot open the session: %v", err)
-	}
-
-	log.Println("Adding commands...")
-
-	createdCommands, err := b.Session.ApplicationCommandBulkOverwrite(b.Session.State.User.ID, b.GuildID, commands)
-	if err != nil {
-		log.Panicf("Cannot create commands: %v", err)
-	}
-	return createdCommands
-}
-
-func (b *Bot) unregisterCommands() {
-	log.Println("Removing commands...")
-
-	for _, v := range b.Commands {
-		err := b.Session.ApplicationCommandDelete(b.Session.State.User.ID, b.GuildID, v.ID)
-		if err != nil {
-			log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
-		}
-	}
 }
 
 var (
@@ -130,9 +100,9 @@ var (
 		"get-clauses": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
-				handleClauseResponse(s, i)
+				ClauseCommand.HandleClauseResponse(s, i)
 			case discordgo.InteractionApplicationCommandAutocomplete:
-				handleClauseAutocomplete(s, i)
+				ClauseCommand.HandleClauseAutocomplete(s, i)
 			}
 		},
 	}

@@ -42,7 +42,7 @@ func (p *PocketbaseAdmin) GetClauseByNumber(clauseNumber, articleNumber string, 
 		return ClauseCollection{}, err
 	}
 	parsedURL.Path = "/api/collections/clause/records"
-
+	fmt.Println(clauseNumber, articleNumber)
 	params := url.Values{}
 	params.Add("filter", fmt.Sprintf("number='%s' && article.number='%s'", clauseNumber, articleNumber))
 	if expand {

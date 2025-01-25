@@ -1,4 +1,4 @@
-package bot
+package clauses
 
 import (
 	"fmt"
@@ -10,24 +10,30 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func handleClauseResponse(s *discordgo.Session, i *discordgo.InteractionCreate) {
+type ClauseCommand struct {
+	ClauseData  []pb.ClauseCollection
+	ArticleData []pb.BaseCollection
+	PbAdmin     pb.PocketbaseAdmin
+}
+
+func (c *ClauseCommand) HandleClauseResponse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 
 	switch len(data.Options) {
 	case 1:
-		handleArticleClauses(s, i, data)
+		c.handleArticleClauses(s, i, data)
 	case 2:
-		handleSpecificClause(s, i, data)
+		c.handleSpecificClause(s, i, data)
 	}
 }
 
-func handleClauseAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (c *ClauseCommand) HandleClauseAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 	var choices []*discordgo.ApplicationCommandOptionChoice
 
 	localClauseData := make([]pb.ClauseCollection, 0)
 	if data.Options[0].StringValue() != "" {
-		for _, v := range clauseData {
+		for _, v := range c.ClauseData {
 			if v.Expand.Article.Number == data.Options[0].StringValue() {
 				localClauseData = append(localClauseData, v)
 			}
@@ -37,14 +43,14 @@ func handleClauseAutocomplete(s *discordgo.Session, i *discordgo.InteractionCrea
 	switch {
 	case data.Options[0].Focused:
 		searchTerm := strings.ToLower(data.Options[0].StringValue())
-		for i, v := range articleData {
+		for i, v := range c.ArticleData {
 			if i > 25 {
 				break
 			}
 			if strings.Contains(strings.ToLower(v.Description), searchTerm) ||
 				strings.Contains(strings.ToLower(v.Number), searchTerm) {
 				choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-					Name:  formatDescription(fmt.Sprintf("Article %s: %s", v.Number, v.Description)),
+					Name:  commands_utils.FormatDescription(fmt.Sprintf("Article %s: %s", v.Number, v.Description)),
 					Value: v.Number,
 				})
 			}
@@ -59,7 +65,7 @@ func handleClauseAutocomplete(s *discordgo.Session, i *discordgo.InteractionCrea
 			if strings.Contains(strings.ToLower(v.Description), searchTerm) ||
 				strings.Contains(strings.ToLower(v.Number), searchTerm) {
 				choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-					Name:  formatDescription(fmt.Sprintf("A %s, Clause %s: %s", v.Expand.Article.Number, v.Number, v.Description)),
+					Name:  commands_utils.FormatDescription(fmt.Sprintf("A %s, Clause %s: %s", v.Expand.Article.Number, v.Number, v.Description)),
 					Value: v.Number,
 				})
 			}
@@ -74,11 +80,11 @@ func handleClauseAutocomplete(s *discordgo.Session, i *discordgo.InteractionCrea
 	})
 }
 
-func handleArticleClauses(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ApplicationCommandInteractionData) {
+func (c *ClauseCommand) handleArticleClauses(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ApplicationCommandInteractionData) {
 	articleNumber := data.Options[0].StringValue()
 	description := fmt.Sprintf("Showing All Clauses For **Article Number: %s**\n", articleNumber)
 
-	clauseData, err := pbAdmin.GetClausesByArticle(articleNumber)
+	clauseData, err := c.PbAdmin.GetClausesByArticle(articleNumber)
 	if err != nil {
 		log.Printf("Error fetching clauses: %v", err)
 		commands_utils.RespondWithEphemeralError(s, i, "Could not retrieve clause data")
@@ -98,13 +104,13 @@ func handleArticleClauses(s *discordgo.Session, i *discordgo.InteractionCreate, 
 	commands_utils.RespondWithEmbed(s, i, "Constitution Clause Details", description)
 }
 
-func handleSpecificClause(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ApplicationCommandInteractionData) {
+func (c *ClauseCommand) handleSpecificClause(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ApplicationCommandInteractionData) {
 	articleNumber := data.Options[0].StringValue()
 	clauseNumber := data.Options[1].StringValue()
 	description := fmt.Sprintf(
 		"Showing **Clause Number: %s** For **Article Number: %s**\n", clauseNumber, articleNumber)
 
-	clauseData, err := pbAdmin.GetClauseByNumber(clauseNumber, articleNumber, true)
+	clauseData, err := c.PbAdmin.GetClauseByNumber(clauseNumber, articleNumber, true)
 	if err != nil {
 		log.Printf("Error fetching specific clause: %v", err)
 		commands_utils.RespondWithEphemeralError(s, i, "Could not retrieve clause data")
