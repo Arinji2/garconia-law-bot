@@ -7,51 +7,46 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+type Bot struct {
+	Token   string
+	GuildID string
+}
+
+type PB struct {
+	Email      string
+	Password   string
+	BaseDomain string
+}
 type Env struct {
-	Bot struct {
-		Token   string
-		GuildID string
+	Bot Bot
+	PB  PB
+}
+
+func loadEnv(envName string) string {
+	val := os.Getenv(envName)
+	if val == "" {
+		log.Fatalf("Environment variable %s is empty", envName)
 	}
-	Auth struct {
-		Email    string
-		Password string
-	}
+	return val
 }
 
 func SetupEnv() *Env {
 	log.Println("Loading environment variables...")
-	token := os.Getenv("TOKEN")
-	guildID := os.Getenv("GUILD_ID")
-	adminEmail := os.Getenv("ADMIN_EMAIL")
-	adminPassword := os.Getenv("ADMIN_PASSWORD")
-
-	if token == "" {
-		log.Fatal("TOKEN is empty")
-	}
-	if guildID == "" {
-		log.Fatal("GuildID is empty")
-	}
-	if adminEmail == "" {
-		log.Fatal("ADMIN_EMAIL is empty")
-	}
-	if adminPassword == "" {
-		log.Fatal("ADMIN_PASSWORD is empty")
-	}
+	token := loadEnv("TOKEN")
+	guildID := loadEnv("GUILD_ID")
+	adminEmail := loadEnv("ADMIN_EMAIL")
+	adminPassword := loadEnv("ADMIN_PASSWORD")
+	baseDomain := loadEnv("BASE_DOMAIN")
 	log.Println("Environment variables loaded.")
 	return &Env{
-		Bot: struct {
-			Token   string
-			GuildID string
-		}{
+		Bot: Bot{
 			Token:   token,
 			GuildID: guildID,
 		},
-		Auth: struct {
-			Email    string
-			Password string
-		}{
-			Email:    adminEmail,
-			Password: adminPassword,
+		PB: PB{
+			Email:      adminEmail,
+			Password:   adminPassword,
+			BaseDomain: baseDomain,
 		},
 	}
 }
