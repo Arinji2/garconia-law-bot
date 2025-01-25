@@ -3,16 +3,18 @@ package pb
 import (
 	"encoding/json"
 	"log"
+	"net/url"
 
 	"github.com/arinji2/law-bot/env"
 	"github.com/arinji2/law-bot/network"
 )
 
-var baseURL string
-
 func SetupPocketbase(pb env.PB) *PocketbaseAdmin {
-	baseURL = pb.BaseDomain
-	url := baseURL + "/api/collections/_superusers/auth-with-password"
+	parsedURL, err := url.Parse(pb.BaseDomain)
+	if err != nil {
+		log.Fatal(err)
+	}
+	parsedURL.Path = "/api/collections/_superusers/auth-with-password"
 	type request struct {
 		Identity string `json:"identity"`
 		Password string `json:"password"`
@@ -23,7 +25,7 @@ func SetupPocketbase(pb env.PB) *PocketbaseAdmin {
 		Password: pb.Password,
 	}
 
-	responseBody, err := network.MakeRequest(url, "POST", body)
+	responseBody, err := network.MakeRequest(parsedURL, "POST", body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,6 +35,6 @@ func SetupPocketbase(pb env.PB) *PocketbaseAdmin {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	response.BaseDomain = pb.BaseDomain
 	return &response
 }
