@@ -43,7 +43,7 @@ func (b *Bot) Run(locPbAdmin *pb.PocketbaseAdmin) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	_, locArticleData, err := pbAdmin.GetAllArticles()
+	locArticleData, err := pbAdmin.GetAllArticles()
 	if err != nil {
 		log.Panicf("Cannot get articles: %v", err)
 		articleData = make([]pb.BaseCollection, 0)
@@ -130,7 +130,7 @@ var (
 		"get-clauses": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
-				HandleGetClauses(s, i)
+				handleClauseResponse(s, i)
 			case discordgo.InteractionApplicationCommandAutocomplete:
 				handleClauseAutocomplete(s, i)
 			}
