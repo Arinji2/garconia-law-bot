@@ -1,12 +1,12 @@
 package bot
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/arinji2/law-bot/pb"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -15,6 +15,12 @@ type Bot struct {
 	GuildID  string
 	Commands []*discordgo.ApplicationCommand
 }
+
+var (
+	pbAdmin     *pb.PocketbaseAdmin
+	articleData []pb.BaseCollection
+	clauseData  []pb.ClauseCollection
+)
 
 func NewBot(token string, guildID string) (*Bot, error) {
 	var err error
@@ -25,8 +31,9 @@ func NewBot(token string, guildID string) (*Bot, error) {
 	return &Bot{Session: s, GuildID: guildID}, nil
 }
 
-func (b *Bot) Run() {
+func (b *Bot) Run(locPbAdmin *pb.PocketbaseAdmin) {
 	log.Println("Starting bot...")
+	pbAdmin = locPbAdmin
 	b.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
@@ -35,6 +42,22 @@ func (b *Bot) Run() {
 	log.Println("Bot is now running.")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	_, locArticleData, err := pbAdmin.GetAllArticles()
+	if err != nil {
+		log.Panicf("Cannot get articles: %v", err)
+		articleData = make([]pb.BaseCollection, 0)
+	} else {
+		articleData = locArticleData
+	}
+
+	locClauseData, err := pbAdmin.GetAllClauses(true)
+	if err != nil {
+		log.Panicf("Cannot get clauses: %v", err)
+		clauseData = make([]pb.ClauseCollection, 0)
+	} else {
+		clauseData = locClauseData
+	}
 
 	<-stop
 	log.Println("\nShutting down gracefully...")
@@ -57,7 +80,6 @@ func (b *Bot) registerCommands() []*discordgo.ApplicationCommand {
 	if err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
-	defer b.Session.Close()
 
 	log.Println("Adding commands...")
 
@@ -82,22 +104,22 @@ func (b *Bot) unregisterCommands() {
 var (
 	commands = []*discordgo.ApplicationCommand{
 		{
-			Name:        "multi-autocomplete",
-			Description: "Showcase of multiple autocomplete option",
+			Name:        "get-clauses",
+			Description: "Get the Clauses of the Constitution",
 			Type:        discordgo.ChatApplicationCommand,
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:         "autocomplete-option-1",
-					Description:  "Autocomplete option 1",
+					Name:         "article-number",
+					Description:  "Article Number of the Clause",
 					Type:         discordgo.ApplicationCommandOptionString,
 					Required:     true,
 					Autocomplete: true,
 				},
 				{
-					Name:         "autocomplete-option-2",
-					Description:  "Autocomplete option 2",
+					Name:         "clause-number",
+					Description:  "Clause Number (Optional)",
 					Type:         discordgo.ApplicationCommandOptionString,
-					Required:     true,
+					Required:     false,
 					Autocomplete: true,
 				},
 			},
@@ -105,89 +127,12 @@ var (
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"multi-autocomplete": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		"get-clauses": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
-				data := i.ApplicationCommandData()
-				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf(
-							"Option 1: %s\nOption 2: %s",
-							data.Options[0].StringValue(),
-							data.Options[1].StringValue(),
-						),
-					},
-				})
-				if err != nil {
-					panic(err)
-				}
+				HandleGetClauses(s, i)
 			case discordgo.InteractionApplicationCommandAutocomplete:
-				data := i.ApplicationCommandData()
-				var choices []*discordgo.ApplicationCommandOptionChoice
-				switch {
-				case data.Options[0].Focused:
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Autocomplete 4 first option",
-							Value: "autocomplete_default",
-						},
-						{
-							Name:  "Choice 3",
-							Value: "choice3",
-						},
-						{
-							Name:  "Choice 4",
-							Value: "choice4",
-						},
-						{
-							Name:  "Choice 5",
-							Value: "choice5",
-						},
-					}
-					if data.Options[0].StringValue() != "" {
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  data.Options[0].StringValue(),
-							Value: "choice_custom",
-						})
-					}
-
-				case data.Options[1].Focused:
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Autocomplete 4 second option",
-							Value: "autocomplete_1_default",
-						},
-						{
-							Name:  "Choice 3.1",
-							Value: "choice3_1",
-						},
-						{
-							Name:  "Choice 4.1",
-							Value: "choice4_1",
-						},
-						{
-							Name:  "Choice 5.1",
-							Value: "choice5_1",
-						},
-					}
-					if data.Options[1].StringValue() != "" {
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  data.Options[1].StringValue(),
-							Value: "choice_custom_2",
-						})
-					}
-				}
-
-				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-					Data: &discordgo.InteractionResponseData{
-						Choices: choices,
-					},
-				})
-				if err != nil {
-					panic(err)
-				}
+				handleClauseAutocomplete(s, i)
 			}
 		},
 	}
