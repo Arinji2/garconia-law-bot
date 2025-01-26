@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arinji2/law-bot/bot/articles"
 	"github.com/arinji2/law-bot/bot/clauses"
 	"github.com/arinji2/law-bot/pb"
 	"github.com/bwmarrin/discordgo"
@@ -17,7 +18,10 @@ type Bot struct {
 	Commands []*discordgo.ApplicationCommand
 }
 
-var ClauseCommand clauses.ClauseCommand
+var (
+	ClauseCommand  clauses.ClauseCommand
+	ArticleCommand articles.ArticleCommand
+)
 
 func NewBot(token string, guildID string) (*Bot, error) {
 	var err error
@@ -49,6 +53,9 @@ func (b *Bot) Run(pbAdmin *pb.PocketbaseAdmin) {
 	ClauseCommand.ArticleData = locArticleData
 	ClauseCommand.ClauseData = locClauseData
 	ClauseCommand.PbAdmin = *pbAdmin
+
+	ArticleCommand.ArticleData = locArticleData
+	ArticleCommand.PbAdmin = *pbAdmin
 
 	createdCommands := b.registerCommands()
 	b.Commands = createdCommands
@@ -94,6 +101,20 @@ var (
 				},
 			},
 		},
+		{
+			Name:        "get-articles",
+			Description: "Get the Articles of the Constitution",
+			Type:        discordgo.ChatApplicationCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:         "article-number",
+					Description:  "Article Number of the Clause",
+					Type:         discordgo.ApplicationCommandOptionString,
+					Required:     false,
+					Autocomplete: true,
+				},
+			},
+		},
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -103,6 +124,15 @@ var (
 				ClauseCommand.HandleClauseResponse(s, i)
 			case discordgo.InteractionApplicationCommandAutocomplete:
 				ClauseCommand.HandleClauseAutocomplete(s, i)
+			}
+		},
+
+		"get-articles": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			switch i.Type {
+			case discordgo.InteractionApplicationCommand:
+				ArticleCommand.HandleArticleResponse(s, i)
+			case discordgo.InteractionApplicationCommandAutocomplete:
+				ArticleCommand.HandleArticleAutocomplete(s, i)
 			}
 		},
 	}

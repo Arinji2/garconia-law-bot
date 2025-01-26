@@ -18,13 +18,14 @@ func CreateBaseEmbed(title, description string) *discordgo.MessageEmbed {
 	}
 }
 
-func RespondWithEmbed(s *discordgo.Session, i *discordgo.InteractionCreate, title, description string) {
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+func RespondWithEmbed(s *discordgo.Session, i *discordgo.InteractionCreate, title, description string) error {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{CreateBaseEmbed(title, description)},
 		},
 	})
+	return err
 }
 
 func RespondWithEphemeralError(s *discordgo.Session, i *discordgo.InteractionCreate, message string) {
