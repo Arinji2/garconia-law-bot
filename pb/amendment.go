@@ -36,14 +36,14 @@ func (p *PocketbaseAdmin) GetAllAmendments(expand bool) ([]AmendmentCollection, 
 	return response.Items, nil
 }
 
-func (p *PocketbaseAdmin) GetAmendmentByNumber(amendmentNumber, clauseNumber string, expand bool) (AmendmentCollection, error) {
+func (p *PocketbaseAdmin) GetAmendmentByNumber(amendmentNumber, clauseNumber, articleNumber string, expand bool) (AmendmentCollection, error) {
 	parsedURL, err := url.Parse(p.BaseDomain)
 	if err != nil {
 		return AmendmentCollection{}, err
 	}
 	parsedURL.Path = "/api/collections/amendment/records"
 	params := url.Values{}
-	params.Add("filter", fmt.Sprintf("number='%s' && clause.number='%s'", amendmentNumber, clauseNumber))
+	params.Add("filter", fmt.Sprintf("number='%s' && clause.number='%s' && clause.article.number='%s", amendmentNumber, clauseNumber, articleNumber))
 	if expand {
 		params.Add("expand", "clause")
 	}

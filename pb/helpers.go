@@ -6,5 +6,6 @@ import "strings"
 func updateParams(encodedParams string) (updatedQuery string) {
 	updatedQuery = strings.ReplaceAll(encodedParams, "%3D", "=")
 	updatedQuery = strings.ReplaceAll(updatedQuery, "%27", "'")
+	updatedQuery = strings.ReplaceAll(updatedQuery, "%26", "&&")
 	return updatedQuery
 }

@@ -109,7 +109,6 @@ func (c *ClauseCommand) handleSpecificClause(s *discordgo.Session, i *discordgo.
 	clauseNumber := data.Options[1].StringValue()
 	description := fmt.Sprintf(
 		"Showing Clause Number: **%s** For Article Number: **%s**\n\n", clauseNumber, articleNumber)
-
 	clauseData, err := c.PbAdmin.GetClauseByNumber(clauseNumber, articleNumber, true)
 	if err != nil {
 		log.Printf("Error fetching specific clause: %v", err)
