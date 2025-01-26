@@ -3,7 +3,7 @@ package commands_utils
 import "github.com/bwmarrin/discordgo"
 
 const (
-	botFooter  = "Garconian Constitution Bot"
+	botFooter  = "Garconia Law Bot"
 	embedColor = 0xA31621 // Garconia Red
 )
 
