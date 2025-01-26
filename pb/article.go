@@ -40,8 +40,7 @@ func (p *PocketbaseAdmin) GetArticleByNumber(articleNumber string) (BaseCollecti
 	params := url.Values{}
 	params.Add("filter", fmt.Sprintf("number='%s'", articleNumber))
 	rawQuery := params.Encode()
-	decodedQuery := updateParams(rawQuery)
-	parsedURL.RawQuery = decodedQuery
+	parsedURL.RawQuery = rawQuery
 
 	type request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)

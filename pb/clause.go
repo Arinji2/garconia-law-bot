@@ -48,8 +48,7 @@ func (p *PocketbaseAdmin) GetClauseByNumber(clauseNumber, articleNumber string, 
 		params.Add("expand", "article")
 	}
 	rawQuery := params.Encode()
-	decodedQuery := updateParams(rawQuery)
-	parsedURL.RawQuery = decodedQuery
+	parsedURL.RawQuery = rawQuery
 
 	type request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)
@@ -81,8 +80,7 @@ func (p *PocketbaseAdmin) GetClausesByArticle(article string) ([]ClauseCollectio
 	params.Add("filter", fmt.Sprintf("article.number='%s'", article))
 	params.Add("expand", "article")
 	rawQuery := params.Encode()
-	decodedQuery := updateParams(rawQuery)
-	parsedURL.RawQuery = decodedQuery
+	parsedURL.RawQuery = rawQuery
 
 	type request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)

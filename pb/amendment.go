@@ -43,13 +43,12 @@ func (p *PocketbaseAdmin) GetAmendmentByNumber(amendmentNumber, clauseNumber, ar
 	}
 	parsedURL.Path = "/api/collections/amendment/records"
 	params := url.Values{}
-	params.Add("filter", fmt.Sprintf("number='%s' && clause.number='%s' && clause.article.number='%s", amendmentNumber, clauseNumber, articleNumber))
+	params.Add("filter", fmt.Sprintf("number='%s' && clause.number='%s' && clause.article.number='%s'", amendmentNumber, clauseNumber, articleNumber))
 	if expand {
-		params.Add("expand", "clause")
+		params.Add("expand", "clause,clause.article")
 	}
 	rawQuery := params.Encode()
-	decodedQuery := updateParams(rawQuery)
-	parsedURL.RawQuery = decodedQuery
+	parsedURL.RawQuery = rawQuery
 
 	type request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)
@@ -81,10 +80,7 @@ func (p *PocketbaseAdmin) GetAmendmentsByClause(clause string) ([]AmendmentColle
 	params.Add("filter", fmt.Sprintf("clause.number='%s'", clause))
 	params.Add("expand", "clause")
 	rawQuery := params.Encode()
-	decodedQuery := updateParams(rawQuery)
-	parsedURL.RawQuery = decodedQuery
-
-	type request struct{}
+	parsedURL.RawQuery = rawQuer request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)
 	if err != nil {
 		return nil, err
