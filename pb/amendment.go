@@ -80,7 +80,9 @@ func (p *PocketbaseAdmin) GetAmendmentsByClause(clause string) ([]AmendmentColle
 	params.Add("filter", fmt.Sprintf("clause.number='%s'", clause))
 	params.Add("expand", "clause")
 	rawQuery := params.Encode()
-	parsedURL.RawQuery = rawQuer request struct{}
+	parsedURL.RawQuery = rawQuery
+
+	type request struct{}
 	responseBody, err := network.MakeAuthenticatedRequest(parsedURL, "GET", request{}, p.Token)
 	if err != nil {
 		return nil, err
