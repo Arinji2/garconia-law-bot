@@ -1,14 +1,17 @@
 package bot
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/arinji2/law-bot/bot/amendments"
 	"github.com/arinji2/law-bot/bot/articles"
 	"github.com/arinji2/law-bot/bot/clauses"
+	"github.com/arinji2/law-bot/env"
 	"github.com/arinji2/law-bot/pb"
 	"github.com/bwmarrin/discordgo"
 )
@@ -20,18 +23,23 @@ type Bot struct {
 }
 
 var (
+	PbAdmin          *pb.PocketbaseAdmin
 	ClauseCommand    clauses.ClauseCommand
 	ArticleCommand   articles.ArticleCommand
 	AmendmentCommand amendments.AmendmentCommand
+	AllowedChannels  []string
+	AllowedRoles     []string
 )
 
-func NewBot(token string, guildID string) (*Bot, error) {
+func NewBot(bot env.Bot) (*Bot, error) {
 	var err error
-	s, err := discordgo.New("Bot " + token)
+	s, err := discordgo.New("Bot " + bot.Token)
 	if err != nil {
 		log.Fatalf("Invalid token: %v", err)
 	}
-	return &Bot{Session: s, GuildID: guildID}, nil
+	AllowedChannels = bot.AllowedChannels
+	AllowedRoles = bot.AllowedRoles
+	return &Bot{Session: s, GuildID: bot.GuildID}, nil
 }
 
 func (b *Bot) Run(pbAdmin *pb.PocketbaseAdmin) {
@@ -39,37 +47,8 @@ func (b *Bot) Run(pbAdmin *pb.PocketbaseAdmin) {
 	b.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
-
-	locArticleData, err := pbAdmin.GetAllArticles()
-	if err != nil {
-		log.Panicf("Cannot get articles: %v", err)
-		locArticleData = make([]pb.BaseCollection, 0)
-	}
-
-	locClauseData, err := pbAdmin.GetAllClauses(true)
-	if err != nil {
-		log.Panicf("Cannot get clauses: %v", err)
-		locClauseData = make([]pb.ClauseCollection, 0)
-	}
-
-	locAmendmentData, err := pbAdmin.GetAllAmendments(true)
-	if err != nil {
-		log.Panicf("Cannot get amendments: %v", err)
-		locAmendmentData = make([]pb.AmendmentCollection, 0)
-	}
-
-	ClauseCommand.ArticleData = locArticleData
-	ClauseCommand.ClauseData = locClauseData
-	ClauseCommand.PbAdmin = *pbAdmin
-
-	ArticleCommand.ArticleData = locArticleData
-	ArticleCommand.PbAdmin = *pbAdmin
-
-	AmendmentCommand.ClauseData = locClauseData
-	AmendmentCommand.ArticleData = locArticleData
-	AmendmentCommand.AmendmentData = locAmendmentData
-	AmendmentCommand.PbAdmin = *pbAdmin
-
+	PbAdmin = pbAdmin
+	refreshData()
 	createdCommands := b.registerCommands()
 	b.Commands = createdCommands
 
@@ -93,6 +72,12 @@ func (b *Bot) Run(pbAdmin *pb.PocketbaseAdmin) {
 
 var (
 	commands = []*discordgo.ApplicationCommand{
+		{
+			Name:        "refresh-data",
+			Description: "Refresh the data of the bot",
+			Type:        discordgo.ChatApplicationCommand,
+			Options:     []*discordgo.ApplicationCommandOption{},
+		},
 		{
 			Name:        "get-clauses",
 			Description: "Get the Clauses of the Constitution",
@@ -159,7 +144,24 @@ var (
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"refresh-data": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkChannel(s, i)
+			checkPermissions(s, i)
+			switch i.Type {
+			case discordgo.InteractionApplicationCommand:
+				timeStart := time.Now()
+				refreshData()
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("Data refreshed in %v.", time.Since(timeStart)),
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+			}
+		},
 		"get-clauses": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkChannel(s, i)
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
 				ClauseCommand.HandleClauseResponse(s, i)
@@ -169,6 +171,7 @@ var (
 		},
 
 		"get-articles": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkChannel(s, i)
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
 				ArticleCommand.HandleArticleResponse(s, i)
@@ -178,6 +181,7 @@ var (
 		},
 
 		"get-amendments": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			checkChannel(s, i)
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
 				AmendmentCommand.HandleAmendmentResponse(s, i)
