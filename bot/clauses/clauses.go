@@ -108,7 +108,7 @@ func (c *ClauseCommand) handleSpecificClause(s *discordgo.Session, i *discordgo.
 	articleNumber := data.Options[0].StringValue()
 	clauseNumber := data.Options[1].StringValue()
 	description := fmt.Sprintf(
-		"Showing **Clause Number: %s** For **Article Number: %s**\n", clauseNumber, articleNumber)
+		"Showing Clause Number: **%s** For Article Number: **%s**\n\n", clauseNumber, articleNumber)
 
 	clauseData, err := c.PbAdmin.GetClauseByNumber(clauseNumber, articleNumber, true)
 	if err != nil {
@@ -117,8 +117,21 @@ func (c *ClauseCommand) handleSpecificClause(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	description += fmt.Sprintf(
-		"**A %s, Clause %s**: %s\n", clauseData.Expand.Article.Number, clauseData.Number, clauseData.Description)
+	amendmentsData, err := c.PbAdmin.GetAmendmentsByClause(clauseNumber)
+	if err != nil {
+		log.Printf("Error fetching amendments: %v", err)
+		commands_utils.RespondWithEphemeralError(s, i, "Could not retrieve amendments data")
+		return
+	}
 
+	description += fmt.Sprintf(
+		"**A %s, Clause %s**: %s\n\n", clauseData.Expand.Article.Number, clauseData.Number, clauseData.Description)
+	if len(amendmentsData) > 0 {
+		amendmentNumbers := make([]string, 0)
+		for _, v := range amendmentsData {
+			amendmentNumbers = append(amendmentNumbers, v.Number)
+		}
+		description += fmt.Sprintf("**Amended**, See %s", strings.Join(amendmentNumbers, ", "))
+	}
 	commands_utils.RespondWithEmbed(s, i, "Constitution Clause Details", description)
 }

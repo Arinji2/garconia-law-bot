@@ -31,7 +31,7 @@ type ClauseCollection struct {
 	} `json:"expand"`
 }
 
-type AmmendmentCollection struct {
+type AmendmentCollection struct {
 	Clause string `json:"clause"`
 	BaseCollection
 	Expand struct {
