@@ -50,6 +50,7 @@ func refreshData() {
 		log.Panicf("Cannot get articles: %v", err)
 		locArticleData = make([]pb.BaseCollection, 0)
 	}
+	log.Printf("Found %d articles", len(locArticleData))
 
 	locClauseData, err := PbAdmin.GetAllClauses(true)
 	if err != nil {
@@ -57,11 +58,15 @@ func refreshData() {
 		locClauseData = make([]pb.ClauseCollection, 0)
 	}
 
+	log.Printf("Found %d clauses", len(locClauseData))
+
 	locAmendmentData, err := PbAdmin.GetAllAmendments(true)
 	if err != nil {
 		log.Panicf("Cannot get amendments: %v", err)
 		locAmendmentData = make([]pb.AmendmentCollection, 0)
 	}
+
+	log.Printf("Found %d ammendments", len(locAmendmentData))
 
 	ClauseCommand.ArticleData = locArticleData
 	ClauseCommand.ClauseData = locClauseData
